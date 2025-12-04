@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# Neopilot BranchOps - CLI entrypoint (simple dispatcher)
+set -euo pipefail
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+LIB="$DIR/lib"
+
+# Load core libraries
+for f in "$LIB"/*.sh; do
+  [ -f "$f" ] && source "$f"
+done
+
+# Load core modules
+for f in "$LIB"/core/*.sh; do
+  [ -f "$f" ] && source "$f"
+done
+
+usage() {
+  cat <<EOF
+branchops - manage git worktrees
+
+Usage:
+  branchops create <name> [--editor=EDITOR] [--copy=files] [--ai=AI]
+  branchops remove <name>
+  branchops list
+  branchops open <name> [--editor=EDITOR] [--ai=AI]
+  branchops switch <name>
+  branchops edit <name> --editor=EDITOR
+  branchops completions <shell>   # bash|zsh|fish
+
+Examples:
+  branchops create feature/xyz --editor=vscode --copy=.env,config.json
+  branchops list
+  branchops open feature/xyz --ai=aider
+  branchops remove feature/xyz
+  branchops completions bash > /etc/bash_completion.d/branchops
+EOF
+}
+
+parse_args() {
+  # Initialize variables
+  EDITOR=""
+  AI=""
+  COPY_LIST=""
+  
+  # Parse flags
+  args=()
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --editor=*) EDITOR="${1#*=}" ; shift ;;
+      --ai=*) AI="${1#*=}" ; shift ;;
+      --copy=*) COPY_LIST="${1#*=}" ; shift ;;
+      --help|-h) usage; exit 0 ;;
+      --*) die "Unknown option: $1" ;;
+      *) args+=("$1") ; shift ;;
+    esac
+done
+
+  # Set command and target
+  CMD="${args[0]:-}"
+  TARGET="${args[1]:-}"
+}
+
+main() {
+  parse_args "$@"
+  
+  case "$CMD" in
+    create) worktree_create "$TARGET" "$EDITOR" "$COPY_LIST" "$AI" ;;
+    remove) worktree_remove "$TARGET" ;;
+    list) worktree_list ;;
+    open) worktree_open "$TARGET" "$EDITOR" "$AI" ;;
+    switch) worktree_switch "$TARGET" ;;
+    edit) worktree_edit "$TARGET" "$EDITOR" ;;
+    completions) generate_completions "$TARGET" ;;
+    *) usage; exit 1 ;;
+  esac
+}
+
+# Generate shell completions
+generate_completions() {
+  local shell="$1"
+  case "$shell" in
+    bash) cat "$DIR/completions/branchops.bash" ;;
+    zsh) cat "$DIR/completions/_branchops" ;;
+    fish) cat "$DIR/completions/branchops.fish" ;;
+    *) die "Unsupported shell: $shell" ;;
+  esac
+}
+
+# Run the main function
+main "$@"

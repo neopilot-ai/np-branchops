@@ -1,0 +1,53 @@
+#compdef branchops
+
+_branchops() {
+  local -a commands=(
+    'create:Create a new worktree'
+    'remove:Remove a worktree'
+    'list:List all worktrees'
+    'open:Open a worktree in editor'
+    'switch:Switch to a worktree'
+    'edit:Edit worktree configuration'
+    'completions:Generate shell completions'
+  )
+
+  local -a editor_flags=(
+    '--editor[Specify editor]:editor:->editors'
+    '--ai[Specify AI tool]:ai:->ai_tools'
+    '--copy[Copy files]:files'
+  )
+
+  _arguments -C \
+    "1: :->cmnds" \
+    "*::arg:->args"
+
+  case "$state" in
+    cmnds)
+      _describe 'command' commands
+      ;;
+    args)
+      case $line[1] in
+        create|open|edit)
+          _arguments $editor_flags
+          ;;
+        remove|switch|open|edit)
+          local -a branches
+          branches=($(git branch --format='%(refname:short)' 2>/dev/null))
+          _describe 'branch' branches
+          ;;
+        completions)
+          local -a shells=(bash zsh fish)
+          _describe 'shell' shells
+          ;;
+      esac
+      ;;
+    editors)
+      local -a editors=($(grep -oP 'AVAILABLE_EDITORS=\(\K[^)]+' $DIR/../adapters/manifest.sh | tr ' ' '\n' | tr -d "'" | tr '\n' ' '))
+      _describe 'editor' editors
+      ;;
+    ai_tools)
+      local -a ai_tools=($(grep -oP 'AVAILABLE_AI=\(\K[^)]+' $DIR/../adapters/manifest.sh | tr ' ' '\n' | tr -d "'" | tr '\n' ' '))
+      _describe 'ai' ai_tools
+      ;;
+  esac
+}
